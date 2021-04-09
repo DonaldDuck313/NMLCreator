@@ -902,6 +902,9 @@ void NMLProject::reloadLanguageList(){
     const QStringList &languageFiles = this->_langDir.entryList({"*.lng"}, QDir::Files);
     for(const QString &languageFile: languageFiles){
         const QString completePath = this->_langDir.path() + "/" + languageFile;
+        if(this->_languageFiles.contains(completePath)){
+            continue;    //This file is already loaded, no need to do anything
+        }
         this->_languageFiles.append(completePath);
 
         QStandardItem *languageItem = new QStandardItem(languageFile);
@@ -920,6 +923,9 @@ void NMLProject::reloadSpriteList(){
     const QStringList &spriteFiles = this->_gfxDir.entryList({"*.png"}, QDir::Files);
     for(const QString &spriteFile: spriteFiles){
         const QString filePath = this->_gfxDir.path() + "/" + spriteFile;
+        if(this->_spriteFiles.contains(filePath)){
+            continue;    //This file is already loaded, no need to do anything
+        }
         if(QImage(filePath).isNull()){
             QMessageBox::critical(nullptr, "", QObject::tr("The file %1 is not a valid image file.").arg(filePath));
             continue;
