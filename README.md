@@ -7,6 +7,8 @@ On Windows, the recommended way of installing NMLCreator is to download and run 
 
 Both the installer program and the ZIP file contain both NMLCreator and the NML compiler, so you don't have to install anything else for NMLCreator to work (though if you want to test your NewGRF, you need to install [OpenTTD](https://github.com/OpenTTD/OpenTTD)).
 
+For some reason, Microsoft Edge may tell you that the installer is potentially unsafe. If you trust me, you can download and run it anyway by going to [Keep](https://i.stack.imgur.com/7Cv9M.png) > [Show More](https://i.stack.imgur.com/qGC1e.png) > [Keep Anyway](https://i.stack.imgur.com/TTtJY.png) > [More Information](https://i.stack.imgur.com/nGNPh.png) > [Run Anyway](https://i.stack.imgur.com/CJwy1.png) (click on a link for a screenshot showing that step). If you don't trust me, you can download the zip file instead.
+
 ## Linux
 On Linux, you can download the binary file for NMLCreator [here](https://github.com/DonaldDuck313/NMLCreator/raw/main/NMLCreator-linux). Place it in whatever folder you want (for example the folder where you installed OpenTTD) and run it.
 
