@@ -12,10 +12,11 @@ QColor SyntaxHighlighter::blockNameColor(QSettings("OpenTTD", "NMLCreator").valu
 
 const QList<QPair<const QRegularExpression, QColor*>> SyntaxHighlighter::_nmlHighlightingRules({
     {QRegularExpression("\\b[A-Z0-9_]+\\b"), &constantColor},
-    {QRegularExpression("\\b[0-9\\.]+\\b"), &numberColor},
-    {QRegularExpression("\\b(string|date)(?=\\s*\\()"), &keywordColor},
-    {QRegularExpression("\\b\\w+(?=\\s*(\\([^)]*\\))?\\s*\\{)"), &blockNameColor},
-    {QRegularExpression("(?<=[;{])[\\s\\w]+(?=:)"), &propertyColor},
+    {QRegularExpression("\\b([0-9\\.]+|0x[0-9A-Fa-f]+)\\b"), &numberColor},
+    {QRegularExpression("\\b(string|date|bitmask)(?=\\s*\\()"), &keywordColor},
+    {QRegularExpression("(?<=[;{])(\\s*//.*)?\\s*return\\s+"), &keywordColor},
+    {QRegularExpression("\\b\\w+(?=\\s*(\\(([^)]|(\\([^)]*\\)))*\\))?\\s*\\{)"), &blockNameColor},
+    {QRegularExpression("(?<=[;{])(\\s*//.*)?[\\s\\w]+(?=:)"), &propertyColor},
     {QRegularExpression("\"[^\"]*([\"\r\n]|$)"), &literalStringColor},
     {QRegularExpression("//.*([\r\n]|$)"), &commentColor}
 });
