@@ -1,4 +1,6 @@
 #include <QSettings>
+#include <QMimeData>
+#include <QScrollBar>
 #include "texteditor.h"
 
 TextEditor::TextEditor(SyntaxHighlighter::Type syntaxHighlighter, QWidget *parent):
@@ -137,7 +139,7 @@ void TextEditor::LineNumberArea::paintEvent(QPaintEvent *event){
         blockNumber++;
     }
 }
-#include <QDebug>
+
 void TextEditor::keyPressEvent(QKeyEvent *event){
     if(event->key() == Qt::Key_Tab){
         const int start = this->textCursor().selectionStart();
@@ -145,6 +147,7 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
 
         //Indent selection if pressing tab when text is selected
         if(start != end){
+            const int initialScroll = this->verticalScrollBar()->value();
             const QString initialText = this->toPlainText().replace("\r\n", "\n");
             QStringList linesBeforeSelection = initialText.left(start).split(QRegExp("[\r\n]"));
             QStringList linesInSelection = initialText.mid(start, end - start).split(QRegExp("[\r\n]"));
@@ -160,6 +163,7 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
             textCursor.setPosition(start + 4, QTextCursor::MoveAnchor);
             textCursor.setPosition(end + 4 * linesInSelection.length(), QTextCursor::KeepAnchor);
             this->setTextCursor(textCursor);
+            this->verticalScrollBar()->setValue(initialScroll);
         }
 
         //Insert spaces if pressing tab when text isn't selected
@@ -173,6 +177,7 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
 
         //Unindent selection if pressing backtab when text is selected
         if(start != end){
+            const int initialScroll = this->verticalScrollBar()->value();
             const QString initialText = this->toPlainText().replace("\r\n", "\n");
             QStringList linesBeforeSelection = initialText.left(start).split(QRegExp("[\r\n]"));
             QStringList linesInSelection = initialText.mid(start, end - start).split(QRegExp("[\r\n]"));
@@ -189,6 +194,7 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
             textCursor.setPosition(start - lastLineBeforeSelectionInitialLength + linesBeforeSelection.last().length(), QTextCursor::MoveAnchor);
             textCursor.setPosition(end - initialText.length() + this->toPlainText().length(), QTextCursor::KeepAnchor);
             this->setTextCursor(textCursor);
+            this->verticalScrollBar()->setValue(initialScroll);
         }
     }
     else{
@@ -217,6 +223,7 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
         //Auto-unindent if the user just inserted a } character
         if(event->key() == Qt::Key_BraceRight){
             const int initialPos = this->textCursor().position();
+            const int initialScroll = this->verticalScrollBar()->value();
             int pos = initialPos - 2;
             int removedCharacters = 0;
             QString text = this->toPlainText();
@@ -232,6 +239,20 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
             QTextCursor textCursor = this->textCursor();
             textCursor.setPosition(initialPos - removedCharacters);
             this->setTextCursor(textCursor);
+            this->verticalScrollBar()->setValue(initialScroll);
         }
+    }
+}
+
+void TextEditor::insertFromMimeData(const QMimeData *source){
+    if(source->hasText() && source->text().contains("\t")){
+        QString text = source->text();
+        text.replace("\t", "    ");
+        QMimeData newMimeData;
+        newMimeData.setText(text);
+        QPlainTextEdit::insertFromMimeData(&newMimeData);
+    }
+    else{
+        QPlainTextEdit::insertFromMimeData(source);
     }
 }
