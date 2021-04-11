@@ -1,6 +1,7 @@
 #include <QSettings>
 #include <QMimeData>
 #include <QScrollBar>
+#include <QRegularExpression>
 #include "texteditor.h"
 
 TextEditor::TextEditor(SyntaxHighlighter::Type syntaxHighlighter, QWidget *parent):
@@ -141,7 +142,22 @@ void TextEditor::LineNumberArea::paintEvent(QPaintEvent *event){
 }
 
 void TextEditor::keyPressEvent(QKeyEvent *event){
-    if(event->key() == Qt::Key_Tab){
+    if(event->key() == Qt::Key_Home){
+        //When pressing Home, go to the first non-space character of the line instead of the beginning of the line
+        const int initialCursorPosition = this->textCursor().position();
+        QPlainTextEdit::keyPressEvent(event);
+        const QString &text = this->toPlainText();
+        const int cursorPosition = this->textCursor().position();
+        if(!text.left(initialCursorPosition).contains(QRegularExpression("[\r\n]\\s+$"))){
+            if(cursorPosition > 0 && (text[cursorPosition - 1] == '\r' || text[cursorPosition - 1] == '\n') && text.indexOf(' ', cursorPosition) == cursorPosition){
+                const int firstNonSpaceCharacter = text.indexOf(QRegularExpression("[\\S\r\n]"), cursorPosition);
+                QTextCursor textCursor = this->textCursor();
+                textCursor.setPosition(firstNonSpaceCharacter);
+                this->setTextCursor(textCursor);
+            }
+        }
+    }
+    else if(event->key() == Qt::Key_Tab){
         const int start = this->textCursor().selectionStart();
         const int end = this->textCursor().selectionEnd();
 
@@ -149,8 +165,8 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
         if(start != end){
             const int initialScroll = this->verticalScrollBar()->value();
             const QString initialText = this->toPlainText().replace("\r\n", "\n");
-            QStringList linesBeforeSelection = initialText.left(start).split(QRegExp("[\r\n]"));
-            QStringList linesInSelection = initialText.mid(start, end - start).split(QRegExp("[\r\n]"));
+            QStringList linesBeforeSelection = initialText.left(start).split(QRegularExpression("[\r\n]"));
+            QStringList linesInSelection = initialText.mid(start, end - start).split(QRegularExpression("[\r\n]"));
             const QString afterSelection = initialText.right(initialText.length() - end);
 
             linesBeforeSelection[linesBeforeSelection.length() - 1] = "    " + linesBeforeSelection.last();
@@ -179,14 +195,14 @@ void TextEditor::keyPressEvent(QKeyEvent *event){
         if(start != end){
             const int initialScroll = this->verticalScrollBar()->value();
             const QString initialText = this->toPlainText().replace("\r\n", "\n");
-            QStringList linesBeforeSelection = initialText.left(start).split(QRegExp("[\r\n]"));
-            QStringList linesInSelection = initialText.mid(start, end - start).split(QRegExp("[\r\n]"));
+            QStringList linesBeforeSelection = initialText.left(start).split(QRegularExpression("[\r\n]"));
+            QStringList linesInSelection = initialText.mid(start, end - start).split(QRegularExpression("[\r\n]"));
             const QString afterSelection = initialText.right(initialText.length() - end);
 
             const int lastLineBeforeSelectionInitialLength = linesBeforeSelection.last().length();
-            linesBeforeSelection.last().replace(QRegExp("^ {1,4}"), "");
+            linesBeforeSelection.last().replace(QRegularExpression("^ {1,4}"), "");
             for(int i = 1; i < linesInSelection.length(); i++){    //Start at 1 because the selection might start in the middle of a line and we don't want to insert spaces there
-                linesInSelection[i].replace(QRegExp("^ {1,4}"), "");
+                linesInSelection[i].replace(QRegularExpression("^ {1,4}"), "");
             }
 
             this->setPlainText(linesBeforeSelection.join("\n") + linesInSelection.join("\n") + afterSelection);

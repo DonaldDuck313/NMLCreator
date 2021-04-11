@@ -53,9 +53,10 @@ private:
     QString _activeFile;
     QDockWidget _fileListDockWidget, _logDockWidget;
 
-    QAction *const _undoButton, *const _redoButton, *const _cutButton, *const _copyButton, *const _pasteButton, *const _selectAllButton;
+    QAction *const _undoButton, *const _redoButton, *const _cutButton, *const _copyButton, *const _pasteButton, *const _findButton, *const _selectAllButton;
     QAction *const _toggleEditToolBar, *const _toggleImageTools;
     QToolBar *const _editToolBar;
+    QDialog _findWindow;
 
     static const QMap<QString, int> _languageCodes;
 };

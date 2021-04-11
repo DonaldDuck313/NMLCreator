@@ -76,10 +76,12 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
     _cutButton(new QAction(QIcon(":/icons/cut.svg"), QObject::tr("Cu&t"))),
     _copyButton(new QAction(QIcon(":/icons/copy.svg"), QObject::tr("&Copy"))),
     _pasteButton(new QAction(QIcon(":/icons/paste.svg"), QObject::tr("&Paste"))),
+    _findButton(new QAction(QObject::tr("&Find"))),
     _selectAllButton(new QAction(QObject::tr("Select &all"))),
     _toggleEditToolBar(new QAction(QObject::tr("&Edit"))),
     _toggleImageTools(new QAction(QObject::tr("&Image tools"))),
-    _editToolBar(new QToolBar(QObject::tr("&Edit")))
+    _editToolBar(new QToolBar(QObject::tr("&Edit"))),
+    _findWindow(this, Qt::WindowSystemMenuHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint)
 {
     //Create the lang and gfx folders if they don't already exist
     this->_langDir.mkpath(".");
@@ -147,7 +149,7 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
                 continue;
             }
 
-            if(!newName.contains(QRegExp("\\.png$", Qt::CaseInsensitive))){
+            if(!newName.contains(QRegularExpression("\\.png$", QRegularExpression::CaseInsensitiveOption))){
                 newName += ".png";
             }
             if(this->renameSprite(oldName, newName)){
@@ -386,13 +388,13 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
                 const int lineNumber = editorAndLineNumber.second;
                 const QString filterWarnings = QSettings("OpenTTD", "NMLCreator").value("compiler/filterWarnings", "").toString();
 
-                if(message.contains(QRegExp("^\\s*nmlc\\s*error", Qt::CaseInsensitive))){
+                if(message.contains(QRegularExpression("^\\s*nmlc\\s*error", QRegularExpression::CaseInsensitiveOption))){
                     icon = QIcon(":/icons/error.svg");
                     if(editor != nullptr && lineNumber > 0){
                         editor->addError(lineNumber);
                     }
                 }
-                else if(message.contains(QRegExp("^\\s*nmlc\\s*warning", Qt::CaseInsensitive))){
+                else if(message.contains(QRegularExpression("^\\s*nmlc\\s*warning", QRegularExpression::CaseInsensitiveOption))){
                     if(!filterWarnings.isEmpty() && message.contains(QRegularExpression(filterWarnings))){
                         continue;
                     }
@@ -466,6 +468,10 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
     this->_copyButton->setShortcut(QKeySequence("CTRL+C"));
     editMenu->addAction(this->_pasteButton);
     this->_pasteButton->setShortcut(QKeySequence("CTRL+V"));
+    editMenu->addSeparator();
+    editMenu->addAction(this->_findButton);
+    this->_findButton->setShortcut(QKeySequence("CTRL+F"));
+    QObject::connect(this->_findButton, &QAction::triggered, &this->_findWindow, &QDialog::show);
     editMenu->addSeparator();
     editMenu->addAction(this->_selectAllButton);
     this->_selectAllButton->setShortcut(QKeySequence("CTRL+A"));
@@ -555,6 +561,77 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
     this->_toggleImageTools->setDisabled(true);
     QObject::connect(this->_toggleEditToolBar, &QAction::triggered, this->_editToolBar, &QToolBar::setVisible);
     QObject::connect(this->_editToolBar, &QToolBar::visibilityChanged, this->_toggleEditToolBar, &QAction::setChecked);
+
+    //Initialize find window
+    QGridLayout *findWindowLayout = new QGridLayout;
+
+    QLineEdit *searchBar = new QLineEdit;
+    findWindowLayout->addWidget(searchBar, 0, 0, 1, 2);
+
+    QCheckBox *findIsCaseSensitive = new QCheckBox(QObject::tr("Case sensitive"));
+    findWindowLayout->addWidget(findIsCaseSensitive, 1, 0, 1, 2);
+
+    QCheckBox *useRegexForFind = new QCheckBox(QObject::tr("Use regular expressions"));
+    findWindowLayout->addWidget(useRegexForFind, 2, 0, 1, 2);
+
+    QPushButton *searchButton = new QPushButton(QObject::tr("Find"));
+    searchButton->setDisabled(true);
+    QObject::connect(searchBar, &QLineEdit::textChanged, [searchButton](const QString &newText){
+        searchButton->setDisabled(newText.isEmpty());
+    });
+    QObject::connect(searchButton, &QPushButton::pressed, [this, searchBar, useRegexForFind, findIsCaseSensitive](){
+        TextEditor *activeTextEditor = dynamic_cast<TextEditor*>(this->centralWidget());
+        if(activeTextEditor == nullptr){
+            QMessageBox::critical(&this->_findWindow, "", QObject::tr("You can't search for text in an image."));
+            return;
+        }
+        const QString &text = activeTextEditor->toPlainText();
+        const int cursorPosition = activeTextEditor->textCursor().position();
+        int index = -1;
+        int length = 0;
+        if(useRegexForFind->isChecked()){
+            const QRegularExpression::PatternOption caseSensitive = findIsCaseSensitive->isChecked() ? QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption;
+            QRegularExpression regex(searchBar->text(), caseSensitive);
+            if(!regex.isValid()){
+                QMessageBox::critical(&this->_findWindow, "", QObject::tr("Please enter a valid regular expression or uncheck the \"Use regular expressions\" checkbox."));
+                return;
+            }
+            QRegularExpressionMatch match = regex.match(text, cursorPosition);
+            if(!match.hasMatch()){
+                match = regex.match(text, 0);
+            }
+            index = match.capturedStart();
+            length = match.capturedLength();
+        }
+        else{
+            const Qt::CaseSensitivity caseSensitive = findIsCaseSensitive->isChecked() ? Qt::CaseSensitive : Qt::CaseInsensitive;
+            index = text.indexOf(searchBar->text(), cursorPosition, caseSensitive);
+            if(index == -1){
+                index = text.indexOf(searchBar->text(), 0, caseSensitive);
+            }
+            length = searchBar->text().length();
+        }
+        if(index == -1){
+            QMessageBox::information(&this->_findWindow, "", useRegexForFind->isChecked() ? QObject::tr("Could not find regular expression '%1'.").arg(searchBar->text()) : QObject::tr("Could not find text '%1'.").arg(searchBar->text()));
+            return;
+        }
+        if(length == 0){
+            QMessageBox::critical(&this->_findWindow, "", useRegexForFind->isChecked() ? QObject::tr("The regular expression '%1' returned a match with zero length.").arg(searchBar->text()) : QObject::tr("Please enter some text to search for."));
+            return;
+        }
+        QTextCursor textCursor = activeTextEditor->textCursor();
+        textCursor.setPosition(index, QTextCursor::MoveAnchor);
+        textCursor.setPosition(index + length, QTextCursor::KeepAnchor);
+        activeTextEditor->setTextCursor(textCursor);
+    });
+    findWindowLayout->addWidget(searchButton, 3, 0);
+
+    QPushButton *closeFindWindowButton = new QPushButton(QObject::tr("Cancel"));
+    QObject::connect(closeFindWindowButton, &QPushButton::pressed, &this->_findWindow, &QDialog::hide);
+    findWindowLayout->addWidget(closeFindWindowButton, 3, 1);
+
+    this->_findWindow.setWindowTitle(QObject::tr("Find"));
+    this->_findWindow.setLayout(findWindowLayout);
 
     //Ask for confirmation before closing if there are unsaved files
     QObject::connect(this, &MainWindow::aboutToClose, [this](QCloseEvent *event){
@@ -719,7 +796,7 @@ void NMLProject::addLanguage(const QString &language, bool openLanguageNow){
         QMessageBox::critical(this, "", QObject::tr("The language %1 is not supported by OpenTTD.").arg(language));
         return;
     }
-    QFile file(this->_langDir.path() + "/" + QString(language).replace(QRegExp("\\s|\\s*\\([a-z]*\\)", Qt::CaseInsensitive), "").toLower() + ".lng");
+    QFile file(this->_langDir.path() + "/" + QString(language).replace(QRegularExpression("\\s|\\s*\\([a-z]*\\)", QRegularExpression::CaseInsensitiveOption), "").toLower() + ".lng");
     if(file.exists()){
         if(QMessageBox::warning(this, "", QObject::tr("A language file for %1 already exists for this project. Do you want to overwrite it?").arg(language), QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes){
             if(!this->removeLanguage(language)){
@@ -862,7 +939,7 @@ bool NMLProject::saveFile(const QString &fileName){
             QMessageBox::critical(this, "", QObject::tr("An error occurred when saving the file %1. The file might be used by another program or you might not have sufficient permissions to edit this file.").arg(fileName));
             return false;
         }
-        file.write(editor->toPlainText().replace(QRegExp("[^\\S\r\n]*([\r\n]|$)"), "\n").replace(QRegExp("[\r\n]*$"), "").toUtf8());
+        file.write(editor->toPlainText().replace(QRegularExpression("[^\\S\r\n]*([\r\n]|$)"), "\n").replace(QRegularExpression("[\r\n]*$"), "").toUtf8());
         file.close();
 
         this->_textEditors.markAsSaved(editor);
@@ -1286,6 +1363,7 @@ bool NMLProject::setActiveFile(const QString &fileName){
         this->_copyButton->setEnabled(this->_textEditors.copyEnabled(textEditor));
         QObject::connect(this->_pasteButton, &QAction::triggered, textEditor, &TextEditor::paste);
         this->_pasteButton->setEnabled(true);
+        this->_findButton->setEnabled(true);
         QObject::connect(this->_selectAllButton, &QAction::triggered, textEditor, &TextEditor::selectAll);
         this->_selectAllButton->setEnabled(true);
 
@@ -1305,6 +1383,7 @@ bool NMLProject::setActiveFile(const QString &fileName){
         this->_cutButton->setEnabled(false);
         this->_copyButton->setEnabled(false);
         this->_pasteButton->setEnabled(false);
+        this->_findButton->setEnabled(false);
         this->_selectAllButton->setEnabled(false);
 
         this->setWindowTitle((spriteEditor->hasUnsavedChanges() ? "*" : "") + QFileInfo(fileName).fileName() + " @ " + QFileInfo(this->_nmlFile).fileName() + " - NMLCreator");
@@ -1324,18 +1403,19 @@ bool NMLProject::setActiveFile(const QString &fileName){
 }
 
 QPair<QString, int> NMLProject::fileAndLineNumber(const QString &message){
-    QRegExp regex("^\\s*nmlc\\s*(?:error|warning)\\s*:\\s*\"([^\"]+)\"\\s*,\\s*line\\s*([0-9]+)", Qt::CaseInsensitive);
+    const QRegularExpression regex("^\\s*nmlc\\s*(?:error|warning)\\s*:\\s*\"([^\"]+)\"\\s*,\\s*line\\s*([0-9]+)", QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = regex.match(message);
     QString file = "";
     int lineNumber = 0;
-    if(regex.indexIn(message) != -1){
-        file = regex.cap(1).replace("\\", "/");
+    if(match.hasMatch()){
+        file = match.captured(1).replace("\\", "/");
         if(this->_textEditors.textEditorFromFileName(file) == nullptr){
-            file = this->_projectDir.path() + "/" + regex.cap(1).replace("\\", "/");
+            file = this->_projectDir.path() + "/" + match.captured(1).replace("\\", "/");
         }
         if(this->_textEditors.textEditorFromFileName(file) == nullptr){
             file = "";
         }
-        lineNumber = regex.cap(2).toInt();
+        lineNumber = match.captured(2).toInt();
     }
     return QPair<QString, int>(file, lineNumber);
 }
