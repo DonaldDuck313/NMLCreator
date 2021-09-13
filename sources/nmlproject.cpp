@@ -291,7 +291,7 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
             }
             if(type == "png"){
                 QAction *rename = contextMenu->addAction(QObject::tr("&Rename"));
-                QObject::connect(rename, &QAction::triggered, [this, fileListView, index](){
+                QObject::connect(rename, &QAction::triggered, [fileListView, index](){
                     fileListView->edit(index);
                 });
             }
@@ -511,6 +511,7 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
     help->setShortcut(QKeySequence("F1"));
     QAction *documentation = helpMenu->addAction(QObject::tr("&NML documentation"));
     QAction *tutorial = helpMenu->addAction(QObject::tr("NML &tutorial"));
+    QAction *upload = helpMenu->addAction(QObject::tr("&Upload NewGRF"));
     helpMenu->addSeparator();
     QAction *about = helpMenu->addAction(QObject::tr("&About NMLCreator"));
     QAction *aboutQt = helpMenu->addAction(QObject::tr("About &Qt"));
@@ -523,6 +524,9 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
     });
     QObject::connect(tutorial, &QAction::triggered, [](){
         QDesktopServices::openUrl(QUrl("https://www.tt-wiki.net/wiki/NMLTutorial"));
+    });
+    QObject::connect(upload, &QAction::triggered, [](){
+        QDesktopServices::openUrl(QUrl("https://bananas.openttd.org/manager"));
     });
     QObject::connect(about, &QAction::triggered, [this](){
         QMessageBox::about(this, QObject::tr("About NMLCreator"), QObject::tr("NMLCreator version " PROGRAMVERSION) + "<br><br>" + QObject::tr("This program is licensed under GNU General Public License v2.0.") + "<br><br>" + QObject::tr("This program uses the <a %1>NML compiler</a> by the OpenTTD team, licensed under GNU General Public License v2.0.").arg("href='https://github.com/OpenTTD/nml'") + "<br><br>" + QObject::tr("Icons made by %2, %3 and %4 from %1. Some icons have been modified.").arg("<a href='https://www.flaticon.com/'>www.flaticon.com</a></div>", "<a href='https://www.freepik.com'>Freepik</a>", "<a href='https://www.flaticon.com/authors/pixel-perfect'>Pixel perfect</a>", "<a href='https://www.flaticon.com/authors/smashicons'>Smashicons</a>"));
@@ -657,7 +661,8 @@ NMLProject::NMLProject(const QString &nmlFile, const QString &fileToOpen):
         else switch(QMessageBox::warning(this, "", QObject::tr("The following files have unsaved changes:") + "\n\n" + unsavedFiles.join("\n") + "\n\n" + QObject::tr("Do you want to save them before closing?"), QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel)){
         case QMessageBox::Yes:
             this->saveAll();
-            //No break, so continue with closing the window
+            this->close();
+            break;
         case QMessageBox::No:
             this->close();
             break;
