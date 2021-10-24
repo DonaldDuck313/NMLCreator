@@ -1,6 +1,8 @@
 # NMLCreator
 NML Creator is an IDE for making [OpenTTD](https://github.com/OpenTTD/OpenTTD) NewGRFs with NML. It uses the [NML compiler](https://github.com/OpenTTD/nml) by the OpenTTD team.
 
+![](https://i.stack.imgur.com/2fXYI.png)
+
 # Installation
 ## Windows
 On Windows, the recommended way of installing NMLCreator is to download and run [this installation program](https://github.com/DonaldDuck313/NMLCreator/raw/main/nmlcreator-setup-windows.exe). If you can't or don't want to use the installation program, you can also download [this zip file](https://github.com/DonaldDuck313/NMLCreator/raw/main/nmlcreator-windows.zip) the executable and its dependencies.
